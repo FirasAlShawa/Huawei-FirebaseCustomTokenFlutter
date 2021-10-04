@@ -1,7 +1,11 @@
+import 'dart:collection';
+
+import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:huawei_account/huawei_account.dart';
 
 import '../Home.dart';
 import '../mapandlocation.dart';
@@ -17,6 +21,9 @@ class _AuthWidgetState extends State<AuthWidget> {
   String email = "empty";
   String password = "empty";
   bool isLogin = false;
+
+  late AuthAccount _account;
+
   late FirebaseAuth auth ;
   late Future<FirebaseApp> _initialization ;
 
@@ -37,62 +44,103 @@ class _AuthWidgetState extends State<AuthWidget> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Image(image: AssetImage(
+            "assets/images/marker.png"
+          )),
+          // Padding(
+          //   padding: const EdgeInsets.all(8.0),
+          //   child: TextField(
+          //     onChanged: (val) {
+          //       setState(() {
+          //         this.email = val;
+          //       });
+          //     },
+          //     decoration: InputDecoration(
+          //         labelText: "Email",
+          //         border: OutlineInputBorder(
+          //           borderRadius: BorderRadius.circular(5.0),
+          //         )),
+          //   ),
+          // ),
+          // Padding(
+          //   padding: const EdgeInsets.all(8.0),
+          //   child: TextField(
+          //     onChanged: (val) {
+          //       setState(() {
+          //         this.password = val;
+          //       });
+          //     },
+          //     decoration: InputDecoration(
+          //         labelText: "password",
+          //         border: OutlineInputBorder(
+          //           borderRadius: BorderRadius.circular(5.0),
+          //         )),
+          //   ),
+          // ),
+          // Padding(
+          //   padding: const EdgeInsets.all(8.0),
+          //   child: ElevatedButton(
+          //     onPressed: () async {
+          //       if(isLogin){
+          //         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>Home()));
+          //       }else{
+          //         await login(email,password);
+          //       }
+          //     },
+          //     child: Text(isLogin?"Logout":"Login"),
+          //   ),
+          // ),
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              onChanged: (val) {
-                setState(() {
-                  this.email = val;
-                });
-              },
-              decoration: InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(5.0),
-                  )),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              onChanged: (val) {
-                setState(() {
-                  this.password = val;
-                });
-              },
-              decoration: InputDecoration(
-                  labelText: "password",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(5.0),
-                  )),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: () async {
-                if(isLogin){
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>Home()));
-                }else{
-                  await login(email,password);
-                }
-              },
-              child: Text(isLogin?"Logout":"Login"),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: () async {
-                auth.signOut();
-                print(auth.currentUser.toString()+"  signOut");
-
-              },
-              child: Text("Logout"),
-            ),
+            child: HuaweiIdAuthButton(
+                onPressed: _signIn,
+                elevation: 0,
+                borderRadius: AuthButtonRadius.SMALL,
+                buttonColor: AuthButtonBackground.RED),
           )
         ]
       );
+  }
+
+  _signIn() async {
+    final helper = AccountAuthParamsHelper();
+    helper
+      ..setProfile()
+      ..setAccessToken()
+      ..setEmail()
+      ..setUid();
+
+    try {
+      _account = await AccountAuthService.signIn(helper);
+      Map<String, dynamic> accountInfo = _account.toMap();
+      print("FROM SIGN IN: " + _account.toMap().toString());
+      EasyLoading.showSuccess('Huawei Success!');
+      generateCustomToken(accountInfo);
+    } on Exception catch (e) {
+      print(e.toString());
+    }
+  }
+
+  void generateCustomToken(Map<String,dynamic> accountInfo) async {
+    try {
+      var response = await Dio().post('https://custom-token-huawei.herokuapp.com/createCustomToken',data:{
+        "id_token":accountInfo["unionId"],
+        "name":accountInfo["displayName"],
+        "picture":accountInfo["avatarUri"],
+        "email":accountInfo["email"]
+      });
+
+      print("generateCustomToken"+response.data["firebase_token"]);
+      EasyLoading.dismiss();
+      EasyLoading.showSuccess('CustomToken Success!');
+      EasyLoading.dismiss();
+      await auth.signInWithCustomToken(response.data["firebase_token"]);
+      EasyLoading.showSuccess('Signing Success!');
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>Home()));
+    } catch (e) {
+      print(e);
+    }
+    EasyLoading.dismiss();
   }
 
   Future<void> login(String _email,String _password) async {
@@ -111,7 +159,6 @@ class _AuthWidgetState extends State<AuthWidget> {
         isLogin = true;
         print('User is signed in!');
         EasyLoading.dismiss();
-        Navigator.push(context, MaterialPageRoute(builder: (context)=>Home()));
       }
     });
 

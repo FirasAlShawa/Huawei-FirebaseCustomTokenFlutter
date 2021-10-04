@@ -65,7 +65,7 @@ class _mainLayoutState extends State<mainLayout> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        body: auth.currentUser== null ?AuthWidget():Home(),
+        body: auth.currentUser == null ?AuthWidget():Home(),
         ),
     );
   }

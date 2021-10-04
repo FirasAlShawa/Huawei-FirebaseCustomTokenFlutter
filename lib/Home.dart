@@ -16,16 +16,19 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   late FirebaseAuth auth;
-  late Future<FirebaseApp> _initialization;
-
+   Future<FirebaseApp> _initialization = Firebase.initializeApp();
+  late String _name,_location,_email,_url;
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     setState(() {
-      _initialization = Firebase.initializeApp();
       auth = FirebaseAuth.instance;
       fusedLocation = FusedLocationProviderClient();
+      _location = "${_latLng.lat},${_latLng.lng}";
+      _name = auth.currentUser!.displayName!;
+      _email = auth.currentUser!.email!;
+      _url = auth.currentUser!.photoURL!;
     });
   }
 
@@ -35,7 +38,7 @@ class _HomeState extends State<Home> {
       fit: StackFit.loose,
       children: [
         MapWidget(),
-        UserCard("firas", "easdlk@flfl;jds.com", "234.2.341.24,234,.234,1.24"),
+        UserCard(_name, _email, _location),
       ],
     );
   }
@@ -53,8 +56,8 @@ class _HomeState extends State<Home> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Image(
-            image: AssetImage(
-              'assets/images/marker.png',
+            image: NetworkImage(
+              _url,
             ),
           ),
           Column(
@@ -64,8 +67,8 @@ class _HomeState extends State<Home> {
               Text(email),
               Text(location),
               TextButton(
-                onPressed: () => {
-                  auth.signOut(),
+                onPressed: () async => {
+                  await auth.signOut(),
                   Navigator.pushReplacement(context,
                       MaterialPageRoute(builder: (context) => AuthWidget()))
                 },
@@ -94,9 +97,7 @@ class _HomeState extends State<Home> {
   late HuaweiMapController mapController;
   Set<Marker> markerlist = Set();
   String lastLocation = "";
-  CameraPosition cam =
-  CameraPosition(target: LatLng(20.012959, 35.997438), zoom: _zoom);
-  // CameraPosition(target: LatLng(41.012959, 28.997438), zoom: _zoom);
+  CameraPosition cam =  CameraPosition(target: LatLng(20.012959, 35.997438), zoom: _zoom);
 
   late CameraPosition cameraPosition;
   LatLng _latLng = LatLng(24.677719, 46.699703);
@@ -115,6 +116,11 @@ class _HomeState extends State<Home> {
       )
       );
     });
+
+    setState(() {
+      _location = "${_latLng.lat},${_latLng.lng}";
+    });
+
     print("_getLastLocation ${_latLng.lat} ${_latLng.lng}");
   }
 
